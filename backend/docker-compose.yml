@@ -1,0 +1,47 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bookmyvenue-postgres
+    restart: always
+    ports:
+      - '5436:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bookmyvenue_db
+    volumes:
+      - bookmyvenue_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: bookmyvenue-pgadmin
+    restart: always
+    ports:
+      - '5053:80'
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@bookmyvenue.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    depends_on:
+      - postgres
+
+  redis:
+    image: redis:7-alpine
+    container_name: bookmyvenue-redis
+    restart: always
+    ports:
+      - '6380:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  bookmyvenue_postgres_data:
