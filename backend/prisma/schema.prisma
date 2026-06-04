@@ -1,0 +1,462 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+enum Role {
+  USER
+  OWNER
+  ADMIN
+}
+
+enum VenueStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  REJECTED
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  PAID
+  REFUNDED
+  FAILED
+}
+
+enum PriceUnit {
+  HOUR
+  DAY
+  EVENT
+}
+
+
+
+model User {
+  id             String   @id @default(cuid())
+
+  name           String
+
+  email          String?  @unique
+
+  countryCode    String?
+  phone          String?  @unique
+
+  passwordHash   String?
+
+  avatarUrl      String?
+
+  role           Role     @default(USER)
+
+  isVerified     Boolean  @default(false)
+  isBanned       Boolean  @default(false)
+
+  lastLoginAt    DateTime?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  // Relations
+  accounts       Account[]
+  refreshTokens  RefreshToken[]
+
+  venues         Venue[]
+  bookings       Booking[]
+  reviews        Review[]
+  favorites      Favorite[]
+
+  auditLogs      AuditLog[]
+
+  @@index([email])
+  @@index([phone])
+}
+
+model Account {
+  id               String @id @default(cuid())
+
+  userId           String
+
+  provider         String
+  providerUserId   String
+
+  user             User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+}
+
+
+
+model RefreshToken {
+  id           String   @id @default(cuid())
+
+  userId       String
+
+  tokenHash    String   @unique
+
+  expiresAt    DateTime
+  revokedAt    DateTime?
+
+  createdAt    DateTime @default(now())
+
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+
+
+model OtpVerification {
+  id           String   @id @default(cuid())
+
+  phone        String
+
+  otpCode      String
+
+  expiresAt    DateTime
+
+  verified     Boolean  @default(false)
+
+  createdAt    DateTime @default(now())
+
+  @@index([phone])
+}
+
+
+
+model Venue {
+  id                 String @id @default(cuid())
+
+  ownerId            String
+
+  title              String
+
+  slug               String @unique
+
+  description        String @db.Text
+
+  venueType          String
+
+  status             VenueStatus @default(DRAFT)
+
+  // Location
+  address            String
+  city               String
+  state              String
+  country            String
+  pincode            String
+
+  latitude           Float
+  longitude          Float
+
+  // Pricing
+  basePrice          Decimal @db.Decimal(10, 2)
+
+  priceUnit          PriceUnit @default(HOUR)
+
+  capacity           Int
+
+  minBookingHours    Int @default(1)
+
+  // Moderation
+  rejectionReason    String?
+
+  // Soft delete
+  isDeleted          Boolean @default(false)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations
+  owner              User @relation(fields: [ownerId], references: [id])
+
+  images             VenueImage[]
+
+  amenities          VenueAmenity[]
+
+  schedules          VenueSchedule[]
+
+  blockedDates       BlockedDate[]
+
+  bookings           Booking[]
+
+  reviews            Review[]
+
+  favorites          Favorite[]
+
+  @@index([ownerId])
+
+  @@index([status])
+
+  @@index([city])
+
+  @@index([latitude, longitude])
+}
+
+
+model VenueImage {
+  id              String @id @default(cuid())
+
+  venueId         String
+
+  imageUrl        String
+
+  publicId        String
+
+  displayOrder    Int @default(0)
+
+  createdAt       DateTime @default(now())
+
+  venue           Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+}
+
+
+model Amenity {
+  id            String @id @default(cuid())
+
+  name          String @unique
+
+  venues        VenueAmenity[]
+}
+
+
+model VenueAmenity {
+  venueId       String
+
+  amenityId     String
+
+  venue           Venue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  amenity         Amenity @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+
+  @@id([venueId, amenityId])
+}
+
+
+model VenueSchedule {
+  id            String @id @default(cuid())
+
+  venueId       String
+
+  dayOfWeek     Int
+
+  openTime      String
+  closeTime     String
+
+  venue        Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@unique([venueId, dayOfWeek])
+}
+
+
+model BlockedDate {
+  id            String @id @default(cuid())
+
+  venueId       String
+
+  blockedDate   DateTime
+
+  reason        String?
+
+  venue        Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@unique([venueId, blockedDate])
+}
+
+
+model Booking {
+  id                 String @id @default(cuid())
+
+  venueId            String
+  userId             String
+
+  startDate          DateTime
+  endDate            DateTime
+
+  guestCount         Int?
+
+  specialRequest     String? @db.Text
+
+  // Money
+  totalAmount        Decimal @db.Decimal(10, 2)
+
+  priceSnapshot      Decimal @db.Decimal(10, 2)
+
+  status             BookingStatus @default(PENDING)
+
+  paymentStatus      PaymentStatus @default(PENDING)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations
+  venue              Venue                  @relation(fields: [venueId], references: [id])
+  user               User                   @relation(fields: [userId], references: [id])
+
+  payment            Payment?
+
+  review             Review?
+
+  statusHistory      BookingStatusHistory[]
+
+  @@index([venueId])
+
+  @@index([userId])
+
+  @@index([status])
+}
+
+
+
+model BookingStatusHistory {
+  id               String @id @default(cuid())
+
+  bookingId        String
+
+  fromStatus       BookingStatus?
+
+  toStatus         BookingStatus
+
+  reason           String?
+
+  createdAt        DateTime @default(now())
+
+  booking          Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+}
+
+
+
+model Payment {
+  id                     String @id @default(cuid())
+
+  bookingId              String @unique
+
+  razorpayOrderId        String? @unique
+
+  razorpayPaymentId      String? @unique
+
+  razorpaySignature      String?
+
+  amount                 Decimal @db.Decimal(10, 2)
+
+  currency               String @default("INR")
+
+  status                 PaymentStatus @default(PENDING)
+
+  paidAt                 DateTime?
+
+  refundedAt             DateTime?
+
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  booking                Booking @relation(fields: [bookingId], references: [id])
+
+  @@index([status])
+}
+
+
+
+model Review {
+  id                 String @id @default(cuid())
+
+  bookingId          String @unique
+
+  venueId            String
+  userId             String
+
+  rating             Int
+
+  comment            String? @db.Text
+
+  createdAt          DateTime @default(now())
+
+  booking            Booking @relation(fields: [bookingId], references: [id])
+  venue              Venue   @relation(fields: [venueId], references: [id])
+  user               User    @relation(fields: [userId], references: [id])
+
+  @@index([venueId])
+}
+
+
+
+model Favorite {
+  userId          String
+
+  venueId         String
+
+  createdAt       DateTime @default(now())
+
+  user            User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  venue           Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@id([userId, venueId])
+}
+
+
+model AuditLog {
+  id               String @id @default(cuid())
+
+  actorId          String?
+
+  action           String
+
+  entityType       String
+
+  entityId         String
+
+  oldData          Json?
+  newData          Json?
+
+  ipAddress        String?
+
+  createdAt        DateTime @default(now())
+
+  actor            User? @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+}
+
+
+
+model WebhookEvent {
+  id                    String @id @default(cuid())
+
+  provider              String
+
+  providerEventId       String?
+
+  eventType             String
+
+  payload               Json
+
+  signature             String?
+
+  processed             Boolean @default(false)
+
+  processedAt           DateTime?
+
+  createdAt             DateTime @default(now())
+
+  @@unique([provider, providerEventId])
+}
