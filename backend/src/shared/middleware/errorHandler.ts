@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../generated/prisma/client.js';
 import type { NextFunction, Request, Response } from 'express';
 
 import logger from '../../config/logger.js';
@@ -8,6 +8,17 @@ type RequestWithAuthContext = Request & {
   userId?: string;
   userRole?: string;
 };
+
+type PrismaKnownRequestError = {
+  code: string;
+  meta?: unknown;
+};
+
+const isPrismaKnownRequestError = (error: unknown): error is PrismaKnownRequestError =>
+  error instanceof Prisma.PrismaClientKnownRequestError;
+
+const isPrismaValidationError = (error: unknown): error is Prisma.PrismaClientValidationError =>
+  error instanceof Prisma.PrismaClientValidationError;
 
 export const errorHandler = (
   err: unknown,
@@ -32,7 +43,7 @@ export const errorHandler = (
 
   /* ------------------------ Prisma Errors ------------------------ */
 
-  else if (err instanceof Prisma.PrismaClientKnownRequestError) {
+  else if (isPrismaKnownRequestError(err)) {
     if (err.code === 'P2002') {
       statusCode = 409;
 
@@ -74,7 +85,7 @@ export const errorHandler = (
     }
   }
 
-  else if (err instanceof Prisma.PrismaClientValidationError) {
+  else if (isPrismaValidationError(err)) {
     statusCode = 400;
     message = 'Invalid request data';
   }

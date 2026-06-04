@@ -4,9 +4,11 @@ import express, { type Application } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 
-
 import { env} from "./config/env.js"
 import logger from './config/logger.js';
+import prisma from './config/prisma.js';
+import { v1Routes } from './routes/v1/index.js';
+import { errorHandler } from './shared/middleware/errorHandler.js';
 
 
 export const createApp = () : Application => {
