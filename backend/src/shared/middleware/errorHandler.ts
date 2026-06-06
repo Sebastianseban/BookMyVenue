@@ -155,12 +155,12 @@ export const errorHandler = (
     message,
   };
 
-  // Structured validation errors
+
   if (err instanceof ApiError && err.errors) {
     response.errors = err.errors;
   }
 
-  // Stack traces only in development
+
   if (isDev && stack) {
     response.stack = stack;
   }
