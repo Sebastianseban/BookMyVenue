@@ -4,23 +4,19 @@ import express, { type Application } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 
-import { env} from "./config/env.js"
+import { env } from './config/env.js';
 import logger from './config/logger.js';
 import prisma from './config/prisma.js';
-import { v1Routes } from './routes/v1/index.js';
+import v1Routes from './routes/v1/v1.routes.js';
 import { errorHandler } from './shared/middleware/errorHandler.js';
 
-
-export const createApp = () : Application => {
-    const app = express() 
-
-    app.set('trust proxy',1)
-
-
-    const allowedOrigins = new Set(env.FRONTEND_ORIGINS);
+export const createApp = (): Application => {
+  const app = express();
+  app.set('trust proxy', 1);
+  const allowedOrigins = new Set(env.FRONTEND_ORIGINS);
 
     app.use(helmet());
-   app.use(
+  app.use(
     cors({
       credentials: true,
       origin: (origin, callback) => {
@@ -33,24 +29,17 @@ export const createApp = () : Application => {
       },
     }),
   );
-
-
   app.use(
     pinoHttp({
       logger,
     }),
   );
-
   app.use(
     express.json({
       limit: '1mb',
     }),
   );
-
-
   app.use(cookieParser());
-
-
 
   app.get('/health', (_req, res) => {
     res.status(200).json({
@@ -59,8 +48,6 @@ export const createApp = () : Application => {
       timestamp: new Date().toISOString(),
     });
   });
-
-
   app.get('/ready', async (_req, res) => {
     try {
       await prisma.$queryRaw`SELECT 1`;
@@ -81,9 +68,7 @@ export const createApp = () : Application => {
       });
     }
   });
-
-
-    app.use('/api/v1', v1Routes);
+  app.use('/api/v1', v1Routes);
 
   app.use((_req, res) => {
     res.status(404).json({
@@ -91,9 +76,7 @@ export const createApp = () : Application => {
       message: 'Route not found',
     });
   });
+  app.use(errorHandler);
 
-
-    app.use(errorHandler);
-
-      return app;
-}
+  return app;
+};

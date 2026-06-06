@@ -8,6 +8,10 @@ const nonEmptyString = (label: string) => z.string().trim().min(1, `${label} is 
 const envSchema = z.object({
      NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().min(1).max(65535).default(5000),
+     BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
+      JWT_ACCESS_SECRET: nonEmptyString('JWT_ACCESS_SECRET'),
+   ACCESS_TOKEN_TTL: z.string().trim().min(1).default('15m'),
+       REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(7),
      DATABASE_URL: nonEmptyString('DATABASE_URL'),
       FRONTEND_ORIGINS: z
       .string()
