@@ -10,6 +10,12 @@ export class AuthRepository {
     });
   }
 
+ findUserById(id:string ,db: DbClient = prisma) {
+  return db.user.findUnique({
+    where:{id}
+  })
+ }
+
   createUser(
     data: {
       name: string;

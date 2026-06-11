@@ -23,6 +23,10 @@ export class TokenService {
     return jwt.sign(payload, env.JWT_ACCESS_SECRET, options);
   }
 
+  verifyAccessToken(token: string): AccessTokenPayload {
+  return jwt.verify(token, env.JWT_ACCESS_SECRET) as AccessTokenPayload;
+}
+
   generateRefreshToken(): string {
     return crypto.randomBytes(48).toString('base64url');
   }

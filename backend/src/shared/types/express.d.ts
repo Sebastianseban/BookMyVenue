@@ -1,17 +1,9 @@
-import type { Role } from '../../generated/prisma/enums.ts';
+import type { User } from '../generated/prisma/index.js';
 
 declare global {
   namespace Express {
     interface Request {
-      auth?: {
-        userId: string;
-        roles: Role[];
-        tokenVersion: number;
-      };
-      userId?: string;
-      userRole?: Role;
+      user?: User;
     }
   }
 }
-
-export {};
