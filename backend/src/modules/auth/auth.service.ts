@@ -4,6 +4,7 @@ import { ApiError } from '../../shared/errors/ApiError.js';
 import { passwordService } from './password.service.js';
 import { tokenService } from './token.service.js';
 import type { LoginDto } from './dto/login.dto.js';
+import { toSafeUser } from './auth.mapper.js';
 
 export class AuthService {
   private async issueTokens(user: { id: string; tokenVersion: number }) {
@@ -14,7 +15,7 @@ export class AuthService {
 
     await authRepository.createRefreshToken({ userId: user.id, tokenHash, expiresAt });
 
-    return { accessToken, refreshToken, expiresAt, user };
+    return { accessToken, refreshToken, expiresAt, user: toSafeUser(user) };
   }
 
   async register(input: RegisterDto) {
@@ -29,6 +30,8 @@ export class AuthService {
     const user = await authRepository.createUser({
       name: input.name,
       email: input.email,
+      phone:input.phone,
+      role:input.role,
       passwordHash,
     });
 
@@ -39,7 +42,7 @@ export class AuthService {
     const user = await authRepository.findUserByEmail(input.email);
 
     if (!user || user.deletedAt || user.isBanned) {
-      throw new ApiError(401, 'unauthrized');
+      throw new ApiError(401, 'Unauthorized');
     }
     if (!user.passwordHash) {
       throw new ApiError(400, 'This account uses a different login method');
@@ -52,6 +55,31 @@ export class AuthService {
     }
 
     return this.issueTokens(user);
+  }
+
+  async refresh(refreshToken: string) {
+    const tokenHash = tokenService.hashToken(refreshToken);
+    const record = await authRepository.findRefreshToken(tokenHash);
+
+    if (!record || record.revokedAt || record.expiresAt <= new Date()) {
+      throw new ApiError(401, 'Invalid refresh token');
+    }
+
+    await authRepository.revokeRefreshToken(tokenHash);
+
+    return this.issueTokens(record.user);
+  }
+
+ 
+  async logout(refreshToken: string) {
+    const tokenHash = tokenService.hashToken(refreshToken);
+    const record = await authRepository.findRefreshToken(tokenHash);
+
+    if (record && !record.revokedAt) {
+      await authRepository.revokeRefreshToken(tokenHash);
+    }
+
+    return true;
   }
 }
 

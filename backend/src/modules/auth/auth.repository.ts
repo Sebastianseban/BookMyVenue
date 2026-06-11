@@ -14,6 +14,8 @@ export class AuthRepository {
     data: {
       name: string;
       email: string;
+      phone?: string;
+      role: 'USER' | 'OWNER';
       passwordHash: string;
     },
     db: DbClient = prisma,
@@ -39,6 +41,7 @@ export class AuthRepository {
   findRefreshToken(tokenHash: string, db: DbClient = prisma) {
     return db.refreshToken.findUnique({
       where: { tokenHash },
+      include: { user: true },
     });
   }
 
