@@ -1,0 +1,373 @@
+{
+  "info": {
+    "_postman_id": "2d6b1a4d-1e8d-4f1f-8f5f-0f7a9d8b1a01",
+    "name": "BookMyVenue Backend API",
+    "description": "Production-ready Postman collection for the BookMyVenue backend auth and system endpoints.\n\nUsage:\n- Import this collection and the matching environment.\n- Set `baseUrl` to your API domain.\n- Set `nodeEnv` to `production` when testing deployed environments.\n- Run the Auth folder in order: Register -> Login -> Refresh -> Logout.\n- The collection stores `accessToken` and `refreshToken` in the selected environment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health"
+            },
+            "description": "Liveness probe for deployment and uptime checks."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function () {",
+                  "  pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Health payload is ok', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('status', 'ok');",
+                  "  pm.expect(body).to.have.property('type', 'liveness');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Readiness Check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ready"
+            },
+            "description": "Readiness probe that verifies the database connection."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 503', function () {",
+                  "  pm.expect([200, 503]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function () {",
+                  "  pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{registerName}}\",\n  \"email\": \"{{registerEmail}}\",\n  \"password\": \"{{registerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register"
+            },
+            "description": "Creates a new account, returns an access token, and sets the refresh token cookie."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function () {",
+                  "  pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Returns access token and user', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('success', true);",
+                  "  pm.expect(body).to.have.property('data');",
+                  "  pm.expect(body.data).to.have.property('accessToken');",
+                  "  pm.expect(body.data).to.have.property('user');",
+                  "  pm.expect(body.data.user).to.not.have.property('passwordHash');",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "if (body?.data?.accessToken) {",
+                  "  pm.environment.set('accessToken', body.data.accessToken);",
+                  "}",
+                  "",
+                  "const setCookie = pm.response.headers.get('set-cookie');",
+                  "if (setCookie) {",
+                  "  pm.test('Refresh token cookie is set', function () {",
+                  "    pm.expect(setCookie).to.include('refreshToken=');",
+                  "    pm.expect(setCookie).to.include('HttpOnly');",
+                  "    pm.expect(setCookie).to.include('Path=/');",
+                  "    if (pm.environment.get('nodeEnv') === 'production') {",
+                  "      pm.expect(setCookie).to.include('Secure');",
+                  "      pm.expect(setCookie).to.include('SameSite=None');",
+                  "    }",
+                  "  });",
+                  "  const match = setCookie.match(/refreshToken=([^;]+)/);",
+                  "  if (match && match[1]) {",
+                  "    pm.environment.set('refreshToken', match[1]);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{registerEmail}}\",\n  \"password\": \"{{registerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login"
+            },
+            "description": "Authenticates the user, returns a fresh access token, and rotates the refresh token cookie."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Returns access token and user', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('success', true);",
+                  "  pm.expect(body).to.have.property('data');",
+                  "  pm.expect(body.data).to.have.property('accessToken');",
+                  "  pm.expect(body.data).to.have.property('user');",
+                  "  pm.expect(body.data.user).to.not.have.property('passwordHash');",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "if (body?.data?.accessToken) {",
+                  "  pm.environment.set('accessToken', body.data.accessToken);",
+                  "}",
+                  "",
+                  "const setCookie = pm.response.headers.get('set-cookie');",
+                  "if (setCookie) {",
+                  "  pm.test('Refresh token cookie is set', function () {",
+                  "    pm.expect(setCookie).to.include('refreshToken=');",
+                  "    pm.expect(setCookie).to.include('HttpOnly');",
+                  "    pm.expect(setCookie).to.include('Path=/');",
+                  "    if (pm.environment.get('nodeEnv') === 'production') {",
+                  "      pm.expect(setCookie).to.include('Secure');",
+                  "      pm.expect(setCookie).to.include('SameSite=None');",
+                  "    }",
+                  "  });",
+                  "  const match = setCookie.match(/refreshToken=([^;]+)/);",
+                  "  if (match && match[1]) {",
+                  "    pm.environment.set('refreshToken', match[1]);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh"
+            },
+            "description": "Rotates the refresh token cookie and returns a fresh access token.",
+            "protocolProfileBehavior": {
+              "disableBodyPruning": true
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const refreshToken = pm.environment.get('refreshToken');",
+                  "if (refreshToken) {",
+                  "  pm.request.headers.upsert({ key: 'Cookie', value: `refreshToken=${refreshToken}` });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Returns access token and user', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('success', true);",
+                  "  pm.expect(body).to.have.property('data');",
+                  "  pm.expect(body.data).to.have.property('accessToken');",
+                  "  pm.expect(body.data).to.have.property('user');",
+                  "  pm.expect(body.data.user).to.not.have.property('passwordHash');",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "if (body?.data?.accessToken) {",
+                  "  pm.environment.set('accessToken', body.data.accessToken);",
+                  "}",
+                  "",
+                  "const setCookie = pm.response.headers.get('set-cookie');",
+                  "if (setCookie) {",
+                  "  pm.test('Refresh token cookie is set', function () {",
+                  "    pm.expect(setCookie).to.include('refreshToken=');",
+                  "    pm.expect(setCookie).to.include('HttpOnly');",
+                  "    pm.expect(setCookie).to.include('Path=/');",
+                  "    if (pm.environment.get('nodeEnv') === 'production') {",
+                  "      pm.expect(setCookie).to.include('Secure');",
+                  "      pm.expect(setCookie).to.include('SameSite=None');",
+                  "    }",
+                  "  });",
+                  "  const match = setCookie.match(/refreshToken=([^;]+)/);",
+                  "  if (match && match[1]) {",
+                  "    pm.environment.set('refreshToken', match[1]);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout"
+            },
+            "description": "Revokes the refresh token and clears the refresh cookie."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const refreshToken = pm.environment.get('refreshToken');",
+                  "if (refreshToken) {",
+                  "  pm.request.headers.upsert({ key: 'Cookie', value: `refreshToken=${refreshToken}` });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Logout is successful', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('success', true);",
+                  "});",
+                  "",
+                  "pm.test('Refresh cookie is cleared', function () {",
+                  "  const setCookie = pm.response.headers.get('set-cookie') || '';",
+                  "  pm.expect(setCookie).to.include('refreshToken=');",
+                  "  pm.expect(setCookie).to.satisfy((value) => value.includes('Max-Age=0') || value.includes('Expires='));",
+                  "});",
+                  "",
+                  "pm.environment.unset('refreshToken');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "nodeEnv",
+      "value": "development",
+      "type": "string"
+    }
+  ]
+}
