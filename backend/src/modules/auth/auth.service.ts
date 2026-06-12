@@ -27,13 +27,13 @@ export class AuthService {
 
     const passwordHash = await passwordService.hash(input.password);
 
-    const user = await authRepository.createUser({
-      name: input.name,
-      email: input.email,
-      phone:input.phone,
-      role:input.role,
-      passwordHash,
-    });
+  const user = await authRepository.createUser({
+  name: input.name,
+  email: input.email,
+  ...(input.phone && { phone: input.phone }),
+  role: input.role,
+  passwordHash,
+});
 
     return this.issueTokens(user);
   }
@@ -70,7 +70,6 @@ export class AuthService {
     return this.issueTokens(record.user);
   }
 
- 
   async logout(refreshToken: string) {
     const tokenHash = tokenService.hashToken(refreshToken);
     const record = await authRepository.findRefreshToken(tokenHash);
@@ -80,6 +79,19 @@ export class AuthService {
     }
 
     return true;
+  }
+
+
+  async getMe(userId:string) {
+
+    const user = await authRepository.findUserById(userId)
+
+     if (!user || user.deletedAt || user.isBanned) {
+      throw new ApiError(401, 'Unauthorized');
+    }
+
+
+    return toSafeUser(user);
   }
 }
 

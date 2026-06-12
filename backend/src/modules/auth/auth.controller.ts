@@ -21,12 +21,14 @@ export class AuthController {
 
     res.cookie('refreshToken', result.refreshToken, refreshTokenCookieOptions(result.expiresAt));
 
-    res.status(201).json(
-      ApiResponse.success(
-        { accessToken: result.accessToken, user: result.user },
-        'Registered successfully',
-      ),
-    );
+    res
+      .status(201)
+      .json(
+        ApiResponse.success(
+          { accessToken: result.accessToken, user: result.user },
+          'Registered successfully',
+        ),
+      );
   });
 
   login = asyncHandler(async (req: Request, res: Response) => {
@@ -34,16 +36,17 @@ export class AuthController {
 
     res.cookie('refreshToken', result.refreshToken, refreshTokenCookieOptions(result.expiresAt));
 
-    res.status(200).json(
-      ApiResponse.success(
-        { accessToken: result.accessToken, user: result.user },
-        'Logged in successfully',
-      ),
-    );
+    res
+      .status(200)
+      .json(
+        ApiResponse.success(
+          { accessToken: result.accessToken, user: result.user },
+          'Logged in successfully',
+        ),
+      );
   });
 
-
-   refresh = asyncHandler(async (req: Request, res: Response) => {
+  refresh = asyncHandler(async (req: Request, res: Response) => {
     const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken) {
@@ -55,12 +58,14 @@ export class AuthController {
 
     res.cookie('refreshToken', result.refreshToken, refreshTokenCookieOptions(result.expiresAt));
 
-    res.status(200).json(
-      ApiResponse.success(
-        { accessToken: result.accessToken, user: result.user },
-        'Token refreshed successfully',
-      ),
-    );
+    res
+      .status(200)
+      .json(
+        ApiResponse.success(
+          { accessToken: result.accessToken, user: result.user },
+          'Token refreshed successfully',
+        ),
+      );
   });
 
   logout = asyncHandler(async (req: Request, res: Response) => {
@@ -72,11 +77,13 @@ export class AuthController {
 
     res.clearCookie('refreshToken', refreshTokenCookieOptions(new Date(0)));
 
-    res.status(200).json(
-      ApiResponse.success(null, 'Logged out successfully'),
-    );
+    res.status(200).json(ApiResponse.success(null, 'Logged out successfully'));
   });
 
+  me = asyncHandler(async (req: Request, res: Response) => {
+    const user = await authService.getMe(req.user!.id);
+    res.status(200).json(ApiResponse.success(user, 'Fetched successfully'));
+  });
 }
 
 export const authController = new AuthController();
